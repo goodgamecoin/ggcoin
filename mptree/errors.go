@@ -9,5 +9,7 @@ var (
 
 	ErrBadPathInsert = errors.New("Bad path when inserting")
 
+	ErrBadEncodedBinary = errors.New("Bad rlp encoding")
+
 	MemStoreIvalidType = errors.New("Got invalid type in KV store")
 )

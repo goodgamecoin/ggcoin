@@ -2,6 +2,7 @@ package mptree
 
 import (
 	"bytes"
+	"github.com/goodgamecoin/ggcoin/common"
 	"github.com/goodgamecoin/ggcoin/common/rlp"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -10,8 +11,8 @@ import (
 func TestEndecode(t *testing.T) {
 	na := &node{
 		path:     []byte{1, 2, 3},
-		children: map[byte][]byte{4: []byte{1, 2}, 5: []byte{3, 4}},
-		data:     map[byte][]byte{6: []byte{5, 6, 7}, 7: []byte{8, 9}},
+		children: map[byte]*common.Hash{4: common.BytesToHashPtr([]byte{1, 2}), 5: common.BytesToHashPtr([]byte{3, 4})},
+		data:     map[byte]*common.Hash{6: common.BytesToHashPtr([]byte{5, 6, 7}), 7: common.BytesToHashPtr([]byte{8, 9})},
 	}
 	var buffer bytes.Buffer
 	assert.Equal(t, nil, rlp.Encode(&buffer, na))
@@ -27,7 +28,7 @@ func TestEndecode(t *testing.T) {
 
 	nb := &node{
 		path: []byte{1, 2, 3},
-		data: map[byte][]byte{16: []byte{255, 34, 7}, 7: []byte{8, 9}},
+		data: map[byte]*common.Hash{16: common.BytesToHashPtr([]byte{255, 34, 7}), 7: common.BytesToHashPtr([]byte{8, 9})},
 	}
 	buffer.Reset()
 	assert.Equal(t, nil, rlp.Encode(&buffer, nb))

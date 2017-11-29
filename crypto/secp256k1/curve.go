@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // ---Based on Golang offical elliptic curves implementation (elliptic.go)---
-// Implements several Koblitz elliptic curves over prime
-// fields.
 
 package secp256k1
 

@@ -3,6 +3,8 @@ package mptree
 import (
 	"encoding/hex"
 	//"github.com/rs/zerolog/log"
+	"github.com/goodgamecoin/ggcoin/common"
+	"github.com/goodgamecoin/ggcoin/crypto"
 )
 
 // https://github.com/ethereum/wiki/wiki/Patricia-Tree
@@ -10,8 +12,8 @@ import (
 // The node of a Merkle Patricia Tree
 type node struct {
 	path     []byte
-	children map[byte][]byte
-	data     map[byte][]byte
+	children map[byte]*common.Hash
+	data     map[byte]*common.Hash
 }
 
 func (n *node) pathString() string {
@@ -26,9 +28,10 @@ func (n *node) insert(kv KVStore, partialPath []byte, data []byte) error {
 	l := len(partialPath)
 	path, tail := partialPath[:l-1], partialPath[l-1]
 	if n == nil {
+		dhash := crypto.ShaHash(data)
 		*n = node{
 			path: path,
-			data: map[byte][]byte{tail: data},
+			data: map[byte]*common.Hash{tail: &dhash},
 		}
 		return nil
 	}
