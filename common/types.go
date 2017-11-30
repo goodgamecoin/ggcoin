@@ -1,5 +1,10 @@
 package common
 
+import (
+	"encoding/hex"
+	"math/big"
+)
+
 const (
 	HashLength = 32
 )
@@ -29,3 +34,11 @@ func (h *Hash) SetBytes(b []byte) {
 	}
 	copy(h[HashLength-len(b):], b)
 }
+
+func (h *Hash) Str() string { return string(h[:]) }
+
+func (h *Hash) String() string { return hex.EncodeToString(h[:]) }
+
+func (h *Hash) Bytes() []byte { return h[:] }
+
+func (h *Hash) Big() *big.Int { return new(big.Int).SetBytes(h[:]) }
