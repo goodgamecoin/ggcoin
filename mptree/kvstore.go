@@ -1,6 +1,7 @@
 package mptree
 
 import (
+	"bytes"
 	"encoding/hex"
 	"sync"
 )
@@ -22,6 +23,22 @@ type KVWriter interface {
 
 type MemStore struct {
 	sync.Map
+}
+
+func (m *MemStore) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("{")
+	m.Range(func(k, v interface{}) bool {
+		ks, vb := k.(string), v.([]byte)
+		buffer.WriteString("[K:")
+		buffer.WriteString(ks)
+		buffer.WriteString(" V:")
+		buffer.WriteString(bytesToStr(vb))
+		buffer.WriteString("]; ")
+		return true
+	})
+	buffer.WriteString("}")
+	return buffer.String()
 }
 
 func (m *MemStore) Get(key []byte) (value []byte, err error) {

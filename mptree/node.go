@@ -6,6 +6,7 @@ import (
 	"github.com/goodgamecoin/ggcoin/common"
 	"github.com/goodgamecoin/ggcoin/common/rlp"
 	"github.com/goodgamecoin/ggcoin/crypto"
+	"strconv"
 	//"github.com/rs/zerolog/log"
 )
 
@@ -14,15 +15,41 @@ import (
 // The node of a Merkle Patricia Tree
 type node struct {
 	path     []byte
-	children map[byte]*common.Hash
 	data     map[byte]*common.Hash
+	children map[byte]*common.Hash
 }
 
 func newNode() *node {
 	return &node{
-		children: make(map[byte]*common.Hash),
 		data:     make(map[byte]*common.Hash),
+		children: make(map[byte]*common.Hash),
 	}
+}
+
+func (n *node) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("{[PATH:")
+	buffer.WriteString(hex.EncodeToString(n.path))
+	buffer.WriteString("];[DATA: ")
+	for i := 0; i < 255; i++ {
+		if h := n.data[byte(i)]; h != nil {
+			buffer.WriteString(strconv.Itoa(i))
+			buffer.WriteString("->")
+			buffer.WriteString(h.String())
+			buffer.WriteString(" ")
+		}
+	}
+	buffer.WriteString("];[CHILDREN: ")
+	for i := 0; i < 255; i++ {
+		if h := n.children[byte(i)]; h != nil {
+			buffer.WriteString(strconv.Itoa(i))
+			buffer.WriteString("->")
+			buffer.WriteString(h.String())
+			buffer.WriteString(" ")
+		}
+	}
+	buffer.WriteString("]}")
+	return buffer.String()
 }
 
 func (n *node) hasChild(index byte) bool {
@@ -66,32 +93,57 @@ func (n *node) pathString() string {
 
 // This function changes the content of the node, it is the caller's responsibility
 // to delete the old hash-value entry and add the new entry
-func (n *node) insert(kv KVStore, partialPath []byte, hash *common.Hash) error {
+func (n *node) insert(kv KVStore, partialPath []byte, insertHash *common.Hash) error {
 	if len(partialPath) < 2 {
 		return ErrBadPathInsert
 	}
 
 	l := len(partialPath)
-	path, tail := partialPath[:l-1], partialPath[l-1]
+	insertPath, tail := partialPath[:l-1], partialPath[l-1]
 	if len(n.path) == 0 {
-		n.path, n.data[tail] = path, hash
+		n.path, n.data[tail] = insertPath, insertHash
 		return nil
 	}
 
-	pi := samePrefix(n.path, path)
+	pi := samePrefix(n.path, insertPath)
 	if pi < 1 {
 		// They must have at least one byte in common
 		return ErrBadPathInsert
 	} else if pi < len(n.path) {
 		// We need to split current node path
+		child1 := &node{
+			path:     n.path[pi:],
+			data:     n.data,
+			children: n.children,
+		}
+		h, err := child1.save(kv)
+		if err != nil {
+			return err
+		}
+		n.path = n.path[:pi]
+		n.data = make(map[byte]*common.Hash)
+		n.children = make(map[byte]*common.Hash)
+		n.children[child1.path[0]] = h
 
+		if len(insertPath) == len(n.path) { // Store data at current node
+			n.data[tail] = insertHash
+		} else { // Need to create another child node
+			child2 := newNode()
+			child2.path = insertPath[pi:]
+			child2.data[tail] = insertHash
+			h, err := child1.save(kv)
+			if err != nil {
+				return err
+			}
+			n.children[child2.path[0]] = h
+		}
 	} else {
-		if len(path) == len(n.path) {
-			n.data[tail] = hash
+		if len(insertPath) == len(n.path) {
+			n.data[tail] = insertHash
 			return nil // We're done here in this case
 		}
-
-		index := path[pi]
+		// In this case, we create a new node as a child node
+		index := insertPath[pi]
 		childNode := newNode()
 		var childHash *common.Hash
 		if n.hasChild(index) {
@@ -102,7 +154,7 @@ func (n *node) insert(kv KVStore, partialPath []byte, hash *common.Hash) error {
 			childNode = node
 			childHash = hash
 		}
-		if err := childNode.insert(kv, partialPath[pi:], hash); err != nil {
+		if err := childNode.insert(kv, partialPath[pi:], insertHash); err != nil {
 			return err
 		}
 		if h, err := childNode.save(kv); err != nil {
@@ -114,6 +166,10 @@ func (n *node) insert(kv KVStore, partialPath []byte, hash *common.Hash) error {
 			return kv.Del(childHash.Bytes())
 		}
 	}
+	return nil
+}
+
+func (n *node) remove(kv KVStore, path []byte) error {
 	return nil
 }
 
